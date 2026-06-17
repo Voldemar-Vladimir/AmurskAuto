@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+sqlalchemy
+mako
+requests
+python-multipart

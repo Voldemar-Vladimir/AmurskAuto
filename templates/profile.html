@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Личный кабинет | Amurskзапчасти</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="page-wrapper">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-danger">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-danger" href="/">🚗 Автозапчасти контракт и б/у</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Каталог</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/support">Поддержка</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/profile">Профиль</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logout">Выйти</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="content container py-4">
+        <h2>Личный кабинет</h2>
+        <p>Имя: ${current_user.name}</p>
+        <p>Телефон: ${current_user.phone}</p>
+        <h4 class="mt-4">Мои заявки</h4>
+        % if leads:
+        <table class="table table-dark table-striped">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Запчасть</th>
+                    <th>Сообщение</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                % for lead in leads:
+                <tr>
+                    <td>${lead.created_at.strftime('%d.%m.%Y %H:%M')}</td>
+                    <td>${lead.part.name if lead.part else '—'}</td>
+                    <td>${lead.message or '—'}</td>
+                    <td>${'Обработана' if lead.is_processed else 'Новая'}</td>
+                </tr>
+                % endfor
+            </tbody>
+        </table>
+        % else:
+        <p class="text-muted">У вас пока нет заявок</p>
+        % endif
+    </div>
+    <footer class="bg-black text-light py-4 mt-auto border-top border-danger">
+        <div class="container text-center">
+            <p class="fw-bold mb-1">Amurskзапчасти</p>
+            <p class="mb-1">Лучшие автозапчасти</p>
+            <p class="mb-1">📞 +7 (XXX) XXX-XX-XX</p>
+            <p class="small mt-2">&copy; 2026 Amurskзапчасти</p>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

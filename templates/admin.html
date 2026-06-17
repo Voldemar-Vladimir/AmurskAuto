@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель | Автозапчасти контракт и б/у</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .form-label { color: #fff !important; }
+        .form-control, .form-select { background-color: #2a2a2a !important; color: #fff !important; border-color: #555 !important; }
+        .form-control::placeholder { color: #aaa !important; }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <div class="content container py-4">
+        <h1 class="text-danger">Админ-панель</h1>
+        <a href="/" class="btn btn-outline-light btn-sm mb-3">← На сайт</a>
+        <a href="/admin/logout" class="btn btn-outline-warning btn-sm mb-3 float-end">Выйти</a>
+
+        % if not admin_ok:
+            <!-- Форма входа -->
+            <div class="card bg-dark border-secondary mx-auto" style="max-width:400px;">
+                <div class="card-body">
+                    <h3>Вход</h3>
+                    % if error:
+                    <div class="alert alert-danger">Неверные данные</div>
+                    % endif
+                    <form method="post" action="/admin/login">
+                        <div class="mb-3">
+                            <label class="form-label">Логин</label>
+                            <input type="text" name="username" class="form-control" placeholder="Логин" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пароль</label>
+                            <input type="password" name="password" class="form-control" placeholder="Пароль" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">Войти</button>
+                    </form>
+                </div>
+            </div>
+        % else:
+            <!-- Меню переключения разделов -->
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <a class="nav-link ${'active' if section == 'leads' else ''}" href="/admin?section=leads">Заявки</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link ${'active' if section == 'parts' else ''}" href="/admin?section=parts">Детали</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link ${'active' if section == 'users' else ''}" href="/admin?section=users">Пользователи</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link ${'active' if section == 'password' else ''}" href="/admin?section=password">Пароль</a>
+                </li>
+            </ul>
+
+            % if section == 'leads':
+                <h2>Заявки</h2>
+                % if leads:
+                <table class="table table-dark table-striped">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>Дата</th>
+                            <th>Имя</th>
+                            <th>Телефон</th>
+                            <th>Запчасть</th>
+                            <th>Сообщение</th>
+                            <th>Клиент</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        % for lead in leads:
+                        <tr class="${'table-success' if lead.is_processed else ''}">
+                            <td>${lead.created_at.strftime('%d.%m.%Y %H:%M')}</td>
+                            <td>${lead.name}</td>
+                            <td>${lead.phone}</td>
+                            <td>${lead.part.name if lead.part else '—'}</td>
+                            <td>${lead.message or '—'}</td>
+                            <td>${lead.user.name if lead.user else 'Гость'}</td>
+                            <td>
+                                % if not lead.is_processed:
+                                <a href="/admin/lead/process/${lead.id}" class="btn btn-sm btn-outline-success">Обработано</a>
+                                % else:
+                                <span class="text-success">✓</span>
+                                % endif
+                            </td>
+                        </tr>
+                        % endfor
+                    </tbody>
+                </table>
+                % else:
+                <p class="text-muted">Нет заявок</p>
+                % endif
+
+            % elif section == 'parts':
+                <h2>Детали</h2>
+                <a href="/admin?section=parts&edit=new" class="btn btn-danger mb-3">+ Добавить запчасть</a>
+
+                % if show_form:
+                    <div class="card bg-dark border-secondary mb-4">
+                        <div class="card-body">
+                            <h4>${'Редактировать' if edit_part else 'Добавить'} запчасть</h4>
+                            <form method="post" enctype="multipart/form-data" action="${'/admin/parts/edit/' + str(edit_part.id) if edit_part else '/admin/parts/add'}">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Название</label>
+                                            <input type="text" name="name" class="form-control" value="${edit_part.name if edit_part else ''}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Цена (₽)</label>
+                                            <input type="number" name="price" class="form-control" value="${edit_part.price if edit_part else ''}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Категория</label>
+                                            <input type="text" name="category" class="form-control" value="${edit_part.category if edit_part else ''}" placeholder="например, Двигатель">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Описание</label>
+                                            <textarea name="description" class="form-control" rows="4">${edit_part.description if edit_part else ''}</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Фото</label>
+                                            <input type="file" name="photo" class="form-control">
+                                            % if edit_part and edit_part.photo:
+                                            <img src="${edit_part.photo}" class="mt-2 rounded" width="100">
+                                            % endif
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-danger">Сохранить</button>
+                                <a href="/admin?section=parts" class="btn btn-outline-light">Отмена</a>
+                            </form>
+                        </div>
+                    </div>
+                % endif
+
+                <table class="table table-dark table-striped">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>Фото</th>
+                            <th>Название</th>
+                            <th>Цена</th>
+                            <th>Категория</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        % for part in parts:
+                        <tr>
+                            <td><img src="${part.photo or 'https://via.placeholder.com/40'}" width="40" height="40" class="rounded"></td>
+                            <td>${part.name}</td>
+                            <td>${part.price} ₽</td>
+                            <td>${part.category or '—'}</td>
+                            <td>
+                                <a href="/admin?section=parts&edit=${part.id}" class="btn btn-sm btn-outline-primary">✎</a>
+                                <a href="/admin/parts/delete/${part.id}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить?')">✕</a>
+                            </td>
+                        </tr>
+                        % endfor
+                    </tbody>
+                </table>
+
+            % elif section == 'users':
+                <h2>Пользователи</h2>
+                % if users:
+                <table class="table table-dark table-striped">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Телефон</th>
+                            <th>Дата регистрации</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        % for user in users:
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.name}</td>
+                            <td>${user.phone}</td>
+                            <td>${user.created_at.strftime('%d.%m.%Y')}</td>
+                        </tr>
+                        % endfor
+                    </tbody>
+                </table>
+                % else:
+                <p class="text-muted">Нет зарегистрированных пользователей</p>
+                % endif
+
+            % elif section == 'password':
+                <h2>Сменить пароль</h2>
+                % if password_ok:
+                <div class="alert alert-success">Пароль успешно изменён!</div>
+                % endif
+                % if password_error:
+                <div class="alert alert-danger">Неверный старый пароль</div>
+                % endif
+                <form method="post" action="/admin/change_password" class="mt-3" style="max-width: 400px;">
+                    <div class="mb-3">
+                        <label class="form-label">Старый пароль</label>
+                        <input type="password" name="old_password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новый пароль</label>
+                        <input type="password" name="new_password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Сохранить</button>
+                </form>
+            % endif
+        % endif
+    </div>
+
+    <footer class="bg-black text-light py-3 mt-auto border-top border-danger">
+        <div class="container text-center small">
+            Amurskзапчасти &copy; 2026
+        </div>
+    </footer>
+</div>
+</body>
+</html>

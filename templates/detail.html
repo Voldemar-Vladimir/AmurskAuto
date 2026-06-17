@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${part.name} | Автозапчасти контракт и б/у</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="page-wrapper">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-danger">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-danger" href="/">🚗 Автозапчасти контракт и б/у</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Каталог</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/support">Поддержка</a></li>
+                    % if current_user:
+                    <li class="nav-item"><a class="nav-link" href="/profile">Профиль</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logout">Выйти</a></li>
+                    % else:
+                    <li class="nav-item"><a class="nav-link" href="/login">Войти</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/register">Регистрация</a></li>
+                    % endif
+                    <li class="nav-item"><a class="nav-link" href="/admin">Админ-панель</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content container py-4">
+        <a href="/" class="btn btn-outline-light mb-3">← Назад</a>
+        % if success:
+        <div class="alert alert-success">Заявка отправлена! Мы скоро свяжемся.</div>
+        % endif
+
+        <div class="row">
+            <div class="col-md-6">
+                <img src="${part.photo or 'https://via.placeholder.com/600x400/333/fff?text=No+Photo'}" class="img-fluid rounded" alt="${part.name}">
+            </div>
+            <div class="col-md-6">
+                <h1 class="text-danger">${part.name}</h1>
+                <p class="fs-3 fw-bold">${part.price} ₽</p>
+                % if part.category:
+                <p><span class="badge bg-secondary">${part.category}</span></p>
+                % endif
+                % if part.description:
+                <p>${part.description}</p>
+                % endif
+
+                <hr class="border-danger">
+                <h4>Заказать или узнать подробности</h4>
+                <form method="post" action="/part/${part.id}/lead">
+                    <div class="mb-3">
+                        <input type="text" name="name" class="form-control bg-dark text-light border-secondary" placeholder="Ваше имя" required value="${current_user.name if current_user else ''}">
+                    </div>
+                    <div class="mb-3">
+                        <input type="tel" name="phone" class="form-control bg-dark text-light border-secondary" placeholder="Телефон" required value="${current_user.phone if current_user else ''}">
+                    </div>
+                    <div class="mb-3">
+                        <textarea name="message" class="form-control bg-dark text-light border-secondary" rows="2" placeholder="Сообщение (необязательно)"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-lg w-100">Отправить заявку</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-black text-light py-4 mt-auto border-top border-danger">
+        <div class="container text-center">
+            <p class="fw-bold mb-1">Amurskзапчасти</p>
+            <p class="mb-1">Лучшие автозапчасти</p>
+            <p class="mb-1">📞 +7 (XXX) XXX-XX-XX</p>
+            <p class="small mt-2">&copy; 2026 Amurskзапчасти</p>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

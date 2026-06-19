@@ -59,10 +59,14 @@
                         <input type="tel" name="phone" class="form-control bg-dark text-light border-secondary" placeholder="Телефон" required value="${current_user.phone if current_user else ''}">
                     </div>
                     <div class="mb-3">
+                        <input type="email" name="email" class="form-control bg-dark text-light border-secondary" placeholder="Email (для ответа)" required>
+                    </div>
+                    <div class="mb-3">
                         <textarea name="message" class="form-control bg-dark text-light border-secondary" rows="2" placeholder="Сообщение (необязательно)"></textarea>
                     </div>
                     <button type="submit" class="btn btn-danger btn-lg w-100">Отправить заявку</button>
                 </form>
+                <p class="text-muted small mt-2">Нажимая «Отправить», вы соглашаетесь на обработку персональных данных.</p>
             </div>
         </div>
     </div>

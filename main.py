@@ -1,6 +1,8 @@
 import os
 import shutil
 import secrets
+import smtplib
+from email.mime.text import MIMEText
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,9 +13,30 @@ from models import SessionLocal, Part, Lead, AdminUser, User, hash_password, ver
 import requests
 import uvicorn
 
-app = FastAPI()
-template_lookup = TemplateLookup(directories=[os.path.join(os.path.dirname(__file__), "templates")])
-app.mount("/static", StaticFiles(directory="static"), name="static")
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_LOGIN = "puzikov18.09.1988@gmail.com"
+SMTP_PASSWORD = "cbwawljxutelfjxl"   # не забудь сменить, если светил
+
+ADMIN_EMAILS = [
+    "puzikov18.09.1988@gmail.com",    # твой
+    "почта_заказчика@домен.ru"        # заказчик
+]
+
+def send_admin_email(subject: str, text: str):
+    for email in ADMIN_EMAILS:
+        msg = MIMEText(text, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_LOGIN
+        msg["To"] = email
+        try:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_LOGIN, SMTP_PASSWORD)
+                server.send_message(msg)
+            print(f"✅ Email отправлен на {email}")
+        except Exception as e:
+            print(f"❌ Ошибка отправки на {email}: {e}")
 
 # ---------- Настройки Telegram ----------
 TELEGRAM_TOKEN = "8991674022:AAFyOPVH468qm4vlr4QtmZBbhsA0XQLDQNI"
@@ -33,6 +56,11 @@ def send_telegram(text: str):
         )
     except Exception as e:
         print(f"Ошибка отправки в Telegram: {e}")
+
+# ---------- FastAPI ----------
+app = FastAPI()
+template_lookup = TemplateLookup(directories=[os.path.join(os.path.dirname(__file__), "templates")])
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ---------- Зависимости ----------
 def get_db():
@@ -83,7 +111,9 @@ async def part_detail(request: Request, part_id: int, db: Session = Depends(get_
 
 @app.post("/part/{part_id}/lead")
 async def send_lead(part_id: int, name: str = Form(...), phone: str = Form(...),
-                    message: str = Form(""), db: Session = Depends(get_db),
+                    email: str = Form(...),  # email клиента (для подтверждения)
+                    message: str = Form(""),
+                    db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_user)):
     lead = Lead(
         part_id=part_id,
@@ -103,16 +133,47 @@ async def send_lead(part_id: int, name: str = Form(...), phone: str = Form(...),
             f"Цена: {part.price} ₽\n"
             f"Имя: {name}\n"
             f"Телефон: {phone}\n"
+            f"Email: {email}\n"
             f"Сообщение: {message or '—'}\n"
             f"Клиент: {'Зарегистрирован' if current_user else 'Гость'}"
         )
     else:
-        text = f"Новая заявка!\nИмя: {name}\nТелефон: {phone}\nСообщение: {message or '—'}"
+        text = f"Новая заявка!\nИмя: {name}\nТелефон: {phone}\nEmail: {email}\nСообщение: {message or '—'}"
+
+    # Отправка уведомлений
     send_telegram(text)
+    send_admin_email("🛠 Новая заявка на сайте", text)
+
+    # Отправка подтверждения клиенту (если email указан)
+    if email:
+        client_subject = f"Ваша заявка на {part.name if part else 'запчасть'}"
+        client_body = (
+            f"Здравствуйте, {name}!\n\n"
+            f"Вы оставили заявку на запчасть: {part.name if part else '—'}\n"
+            f"Цена: {part.price if part else '—'} ₽\n"
+            f"Ваш телефон: {phone}\n"
+            f"Сообщение: {message or '—'}\n\n"
+            f"Мы свяжемся с вами в ближайшее время.\n"
+            f"С уважением, Amurskзапчасти"
+        )
+        try:
+            send_client_email(email, client_subject, client_body)
+        except:
+            pass
 
     return RedirectResponse("/?success=1", status_code=303)
 
-# ---------- Пользователи ----------
+# ---------- Отправка письма клиенту (можно использовать ту же функцию, но с другим получателем) ----------
+def send_client_email(to_email: str, subject: str, text: str):
+    msg = MIMEText(text, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_LOGIN
+    msg["To"] = to_email
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_LOGIN, SMTP_PASSWORD)
+        server.send_message(msg)
+
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     template = template_lookup.get_template("register.html")
@@ -203,7 +264,6 @@ async def admin_panel(request: Request, db: Session = Depends(get_db)):
                                         edit_part=edit_part, show_form=show_form,
                                         password_error=password_error, password_ok=password_ok,
                                         users=users))
-
 
 @app.post("/admin/login")
 async def admin_login(request: Request, username: str = Form(...), password: str = Form(...),
@@ -298,8 +358,6 @@ async def admin_process_lead(request: Request, lead_id: int, db: Session = Depen
         lead.is_processed = 1
         db.commit()
     return RedirectResponse("/admin?section=leads", status_code=303)
-
-# ---------- Поддержка ----------
 @app.get("/support", response_class=HTMLResponse)
 async def support_page(request: Request):
     template = template_lookup.get_template("support.html")
@@ -310,7 +368,8 @@ async def support_page(request: Request):
 async def support_send(name: str = Form(...), contact: str = Form(...), message: str = Form(...)):
     text = f"📩 Новое обращение в поддержку!\nИмя: {name}\nКонтакты: {contact}\nВопрос: {message}"
     send_telegram(text)
-    return RedirectResponse(url="/", status_code=303)
+    send_admin_email("📩 Обращение в поддержку", text)
+    return RedirectResponse(url="/?success=1", status_code=303)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

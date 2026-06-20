@@ -5,14 +5,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 
-# Читаем строку подключения из переменной окружения
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Путь к SQLite в постоянном хранилище Render
+DB_PATH = "/var/data/database.db"
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL не задан! Добавь переменную окружения в Render.")
-
-# Для PostgreSQL не нужен параметр connect_args
-engine = create_engine(DATABASE_URL)
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -40,7 +38,6 @@ class User(Base):
     phone = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
     leads = relationship("Lead", back_populates="user")
 
 class Part(Base):
@@ -63,7 +60,6 @@ class Lead(Base):
     message = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_processed = Column(Integer, default=0)
-
     part = relationship("Part")
     user = relationship("User", back_populates="leads")
 

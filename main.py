@@ -17,7 +17,7 @@ import requests
 
 # В Render задай эти переменные окружения (Environment Variables)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")  # "re_xxxxxxxx"
-FROM_EMAIL = "onboarding@resend.dev"  # или свой домен после верификации
+FROM_EMAIL = "noreply@amurskauto.ru"
 ADMIN_EMAILS = ["puzikov18.09.1988@gmail.com", "zapchasti.amursk.27@gmail.com"]
 
 def send_email_via_resend(to_emails, subject, text):

@@ -12,33 +12,44 @@ from sqlalchemy import func
 from models import SessionLocal, Part, Lead, AdminUser, User, hash_password, verify_password
 import requests
 import uvicorn
+import os
+import requests
 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_LOGIN = "puzikov18.09.1988@gmail.com"
-SMTP_PASSWORD = "cbwawljxutelfjxl"   # не забудь сменить, если светил
+# В Render задай эти переменные окружения (Environment Variables)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")  # "re_xxxxxxxx"
+FROM_EMAIL = "onboarding@resend.dev"  # или свой домен после верификации
+ADMIN_EMAILS = ["puzikov18.09.1988@gmail.com", "zapchasti.amursk.27@gmail.com"]
 
-ADMIN_EMAILS = [
-    "puzikov18.09.1988@gmail.com",    # твой
-    "zapchasti.amursk.27@gmail.com"        # заказчик
-]
-
-def send_admin_email(subject: str, text: str):
-    for email in ADMIN_EMAILS:
-        msg = MIMEText(text, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = SMTP_LOGIN
-        msg["To"] = email
+def send_email_via_resend(to_emails, subject, text):
+    if not RESEND_API_KEY:
+        print("❌ RESEND_API_KEY не задан")
+        return
+    for email in to_emails:
         try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_LOGIN, SMTP_PASSWORD)
-                server.send_message(msg)
-            print(f"✅ Email отправлен на {email}")
+            r = requests.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "from": f"AmurskZapchasti <{FROM_EMAIL}>",
+                    "to": [email],
+                    "subject": subject,
+                    "text": text,
+                },
+                timeout=10
+            )
+            if r.status_code == 200:
+                print(f"✅ Отправлено на {email}")
+            else:
+                print(f"❌ Ошибка {r.status_code}: {r.text}")
         except Exception as e:
-            print(f"❌ Ошибка отправки на {email}: {e}")
+            print(f"❌ Ошибка на {email}: {e}")
 
-# ---------- Настройки Telegram ----------
+# И используй эту функцию везде вместо send_admin_email / send_client_email
+def send_admin_email(subject, text):
+    send_email_via_resend(ADMIN_EMAILS, subject, text)
+
+def send_client_email(to_email, subject, text):
+    send_email_via_resend([to_email], subject, text)
 TELEGRAM_TOKEN = "8991674022:AAFyOPVH468qm4vlr4QtmZBbhsA0XQLDQNI"
 TELEGRAM_CHAT_ID = "5977647337"
 
@@ -163,16 +174,7 @@ async def send_lead(part_id: int, name: str = Form(...), phone: str = Form(...),
 
     return RedirectResponse("/?success=1", status_code=303)
 
-# ---------- Отправка письма клиенту (можно использовать ту же функцию, но с другим получателем) ----------
-def send_client_email(to_email: str, subject: str, text: str):
-    msg = MIMEText(text, "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = SMTP_LOGIN
-    msg["To"] = to_email
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_LOGIN, SMTP_PASSWORD)
-        server.send_message(msg)
+
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
@@ -372,4 +374,6 @@ async def support_send(name: str = Form(...), contact: str = Form(...), message:
     return RedirectResponse(url="/?success=1", status_code=303)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    import os
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)

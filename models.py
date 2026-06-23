@@ -5,18 +5,17 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 
-# ---------- Путь к SQLite ----------
-# Используй переменную окружения DB_FILE или значение по умолчанию
-DB_FILE = os.environ.get("DB_FILE", "database.db")
-DB_PATH = os.path.abspath(DB_FILE)
+# ---------- Подключение к PostgreSQL (Supabase) ----------
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("Переменная окружения DATABASE_URL не задана")
 
-# Создаём папку для БД, если указан путь с поддиректориями
-db_dir = os.path.dirname(DB_PATH)
-if db_dir:
-    os.makedirs(db_dir, exist_ok=True)
+# Для Supabase часто нужен SSL, но в строке подключения уже может быть ?sslmode=require
+connect_args = {}
+if "sslmode" not in DATABASE_URL:
+    connect_args = {"sslmode": "require"}
 
-DATABASE_URL = f"sqlite:///{DB_PATH}"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
